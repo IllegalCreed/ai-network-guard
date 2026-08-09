@@ -1,0 +1,25 @@
+name: macOS build
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: macos-14
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Run tests
+        run: swift test
+
+      - name: Assemble app bundle
+        run: ./scripts/build-app.sh
+
+      - name: Upload app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ExitWatch-macOS
+          path: dist/ExitWatch.app
