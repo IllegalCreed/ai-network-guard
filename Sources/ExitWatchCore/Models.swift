@@ -116,6 +116,8 @@ public struct GeoInfo: Sendable, Hashable {
     public let isTor: Bool
     public let isMobile: Bool
     public let isSatellite: Bool
+    public let timeZoneIdentifier: String?
+    public let timeZoneOffsetSeconds: Int?
 
     public init(
         countryCode: String,
@@ -129,7 +131,9 @@ public struct GeoInfo: Sendable, Hashable {
         isProxy: Bool = false,
         isTor: Bool = false,
         isMobile: Bool = false,
-        isSatellite: Bool = false
+        isSatellite: Bool = false,
+        timeZoneIdentifier: String? = nil,
+        timeZoneOffsetSeconds: Int? = nil
     ) {
         self.countryCode = countryCode.uppercased()
         self.countryName = countryName
@@ -143,6 +147,8 @@ public struct GeoInfo: Sendable, Hashable {
         self.isTor = isTor
         self.isMobile = isMobile
         self.isSatellite = isSatellite
+        self.timeZoneIdentifier = timeZoneIdentifier
+        self.timeZoneOffsetSeconds = timeZoneOffsetSeconds
     }
 
     public var isBlockedRegion: Bool {
@@ -235,13 +241,24 @@ public enum MonitorStatus: String, Sendable, Hashable {
 
     public var isAlert: Bool {
         switch self {
-        case .risk, .offline: return true
-        case .idle, .checking, .safe, .unknown: return false
+        case .risk, .unknown, .offline: return true
+        case .idle, .checking, .safe: return false
         }
     }
 }
 
 public enum CountryNames {
+    /// Prefer the app's Chinese labels for the countries we commonly show,
+    /// while retaining a provider's name for an unmapped country code.
+    public static func displayName(for code: String, fallback: String? = nil) -> String {
+        let normalized = code.uppercased()
+        let localized = name(for: normalized)
+        if localized != normalized { return localized }
+        return fallback?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            ? fallback!
+            : normalized
+    }
+
     public static func name(for code: String) -> String {
         switch code.uppercased() {
         case "CN": return "中国大陆"

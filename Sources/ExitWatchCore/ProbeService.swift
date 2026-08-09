@@ -5,6 +5,21 @@ import Foundation
 /// geolocation provider, and repeated checks do not continuously re-submit the
 /// same address.
 public actor IPProbeService {
+    private enum GeoProvider: String, Sendable {
+        // ipwho.is is the primary path because it is currently reachable on
+        // networks where api.ipapi.is can fail its TLS handshake. ipapi.is is
+        // retained as a fallback for its richer threat/database signals.
+        case ipwho
+        case ipapi
+
+        var endpointDescription: String {
+            switch self {
+            case .ipwho: return "ipwho.is"
+            case .ipapi: return "ipapi.is"
+            }
+        }
+    }
+
     private struct CachedGeo: Sendable {
         let value: GeoInfo
         let storedAt: Date
@@ -50,7 +65,7 @@ public actor IPProbeService {
             var request = URLRequest(url: definition.url)
             request.httpMethod = "GET"
             request.timeoutInterval = 8
-            request.setValue("ExitWatch/0.1 (+https://github.com/IllegalCreed/exitwatch-macos)", forHTTPHeaderField: "User-Agent")
+            request.setValue("ExitWatch/\(ProductInfo.version) (+https://github.com/IllegalCreed/ai-network-guard)", forHTTPHeaderField: "User-Agent")
 
             let (data, response) = try await session.data(for: request)
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 200
@@ -96,12 +111,42 @@ public actor IPProbeService {
             return cached.value
         }
 
-        var components = URLComponents(string: "https://api.ipapi.is/")!
-        components.queryItems = [URLQueryItem(name: "q", value: ip)]
-        var request = URLRequest(url: components.url!)
+        for provider in [GeoProvider.ipwho, .ipapi] {
+            do {
+                let value = try await lookupGeo(for: ip, provider: provider)
+                geoCache[ip] = CachedGeo(value: value, storedAt: Date())
+                return value
+            } catch {
+                // Try the next provider. A provider outage should not turn a
+                // perfectly valid IP probe into a failed monitor check.
+            }
+        }
+
+        // The IP itself is still useful to the user. Keep the UI message
+        // neutral when all metadata providers are down instead of surfacing a
+        // low-level TLS code as if it were a privacy finding.
+        throw GeoLookupError.allProvidersUnavailable(
+            providers: [GeoProvider.ipwho, .ipapi].map(\.endpointDescription)
+        )
+    }
+
+    private func lookupGeo(for ip: String, provider: GeoProvider) async throws -> GeoInfo {
+        let url: URL
+        switch provider {
+        case .ipwho:
+            let encodedIP = ip.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ip
+            url = URL(string: "https://ipwho.is/\(encodedIP)")!
+        case .ipapi:
+            var components = URLComponents(string: "https://api.ipapi.is/")!
+            components.queryItems = [URLQueryItem(name: "q", value: ip)]
+            url = components.url!
+        }
+
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = 8
-        request.setValue("ExitWatch/0.1 (+https://github.com/IllegalCreed/exitwatch-macos)", forHTTPHeaderField: "User-Agent")
+        request.setValue("ExitWatch/\(ProductInfo.version) (+https://github.com/IllegalCreed/ai-network-guard)", forHTTPHeaderField: "User-Agent")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await session.data(for: request)
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 200
@@ -109,10 +154,14 @@ public actor IPProbeService {
             throw ProbeParsingError.unsupportedStatus(statusCode)
         }
 
-        let decoded = try JSONDecoder().decode(IPAPIResponse.self, from: data)
-        let value = try decoded.makeGeoInfo(fallbackIP: ip)
-        geoCache[ip] = CachedGeo(value: value, storedAt: Date())
-        return value
+        switch provider {
+        case .ipwho:
+            let decoded = try JSONDecoder().decode(IPWhoIsResponse.self, from: data)
+            return try decoded.makeGeoInfo(fallbackIP: ip)
+        case .ipapi:
+            let decoded = try JSONDecoder().decode(IPAPIResponse.self, from: data)
+            return try decoded.makeGeoInfo(fallbackIP: ip)
+        }
     }
 
     private func friendlyMessage(for error: Error) -> String {
@@ -124,5 +173,16 @@ public actor IPProbeService {
             return "网络请求失败（\(nsError.code)）"
         }
         return "检查失败：\(error.localizedDescription)"
+    }
+}
+
+private enum GeoLookupError: LocalizedError, Sendable {
+    case allProvidersUnavailable(providers: [String])
+
+    var errorDescription: String? {
+        switch self {
+        case .allProvidersUnavailable(let providers):
+            return "定位服务暂时不可用（已尝试：\(providers.joined(separator: "、"))）"
+        }
     }
 }
