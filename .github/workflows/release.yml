@@ -1,0 +1,56 @@
+name: Release macOS app
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+
+      - name: Install icon build dependencies
+        run: python -m pip install -r requirements-build.txt
+
+      - name: Run tests
+        run: swift test
+
+      - name: Assemble app bundle
+        run: ./scripts/build-app.sh
+
+      - name: Package Apple Silicon app
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          archive="AI-Network-Guard-${RELEASE_TAG}-macOS-arm64.zip"
+          ditto -c -k --sequesterRsrc --keepParent "dist/ExitWatch.app" "$archive"
+          shasum -a 256 "$archive" > "${archive}.sha256"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          archive="AI-Network-Guard-${RELEASE_TAG}-macOS-arm64.zip"
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "AI网络护航 ${RELEASE_TAG}" \
+            --generate-notes \
+            "$archive" \
+            "${archive}.sha256"

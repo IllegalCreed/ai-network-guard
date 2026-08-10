@@ -27,11 +27,18 @@ v0.3.0 已包含：
 - 设备环境信息卡片：本机时区、首选语言、macOS 版本和网络接口；本机时区会与 IP 出口定位到的时区做一致性比较。
 - 可选的 Agent 防护：出口明确回到 CN/HK 时，优雅关闭 Claude Code 与 ChatGPT；默认关闭。
 
+## 下载
+
+[下载最新 macOS arm64 版本（GitHub Releases）](https://github.com/IllegalCreed/ai-network-guard/releases/latest)
+
+目前发布包针对 Apple Silicon（arm64）；Intel Mac 可按下方命令从源码构建。
+
 ## 快速运行
 
 需要 macOS 13+、Xcode Command Line Tools 和 Swift 5.9+：
 
 ~~~
+python3 -m pip install -r requirements-build.txt
 swift run ExitWatch --probe-once
 ./scripts/build-app.sh
 open dist/ExitWatch.app
