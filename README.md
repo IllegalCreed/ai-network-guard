@@ -1,5 +1,8 @@
 # AI网络护航 / AI Network Guard
 
+[![macOS build](https://github.com/IllegalCreed/ai-network-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/IllegalCreed/ai-network-guard/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/IllegalCreed/ai-network-guard?label=下载)](https://github.com/IllegalCreed/ai-network-guard/releases/latest)
+
 一个面向中国大陆网络环境的 macOS 菜单栏守护工具，帮助 Claude Code、ChatGPT 和其他境外 AI Agent 保持稳定、可解释的网络出口。它会定时访问多个独立的出口探针，查询每个探针看到的 IP、地理位置和网络类型；当任一探针落在中国大陆（CN）或中国香港（HK），或所有探针都不可用时，发送系统通知。
 
 它不承诺“永不封号”，而是尽早发现出口、DNS、WebRTC/UDP 和设备环境的不一致，降低因网络环境异常导致账号触发风控的风险。
@@ -8,9 +11,11 @@
 
 > 这是一个网络诊断工具，不是 VPN，也不能保证某个网站一定接受当前 IP。第三方 IP 数据库存在延迟和误判的可能，网络类型会明确标注为“推测”或“数据库标记”。
 
-## 当前版本
+## 当前版本：v0.3.0
 
-v0.3.0 已包含：
+[查看 v0.3.0 Release](https://github.com/IllegalCreed/ai-network-guard/releases/tag/v0.3.0)
+
+当前版本包含：
 
 - 原生 macOS 菜单栏图标（macOS 13+）。
 - 通用出口、Cloudflare 出口、Claude 出口三个默认探针。
@@ -29,13 +34,19 @@ v0.3.0 已包含：
 
 ## 下载
 
-[下载最新 macOS arm64 版本（GitHub Releases）](https://github.com/IllegalCreed/ai-network-guard/releases/latest)
+Apple Silicon Mac（arm64）可直接下载：
 
-目前发布包针对 Apple Silicon（arm64）；Intel Mac 可按下方命令从源码构建。
+- [下载 AI-Network-Guard-v0.3.0-macOS-arm64.zip](https://github.com/IllegalCreed/ai-network-guard/releases/download/v0.3.0/AI-Network-Guard-v0.3.0-macOS-arm64.zip)
+- [下载 SHA256 校验文件](https://github.com/IllegalCreed/ai-network-guard/releases/download/v0.3.0/AI-Network-Guard-v0.3.0-macOS-arm64.zip.sha256)
+- [查看全部版本](https://github.com/IllegalCreed/ai-network-guard/releases)
+
+解压后将 `ExitWatch.app` 拖入“应用程序”文件夹，再点击菜单栏的盾牌图标打开面板。当前发布包由 GitHub Actions 构建，未经过 Apple 公证；首次打开若出现系统提示，请在 Finder 中右键应用并选择“打开”。
+
+Intel Mac 可按下方命令从源码构建。
 
 ## 快速运行
 
-需要 macOS 13+、Xcode Command Line Tools 和 Swift 5.9+：
+需要 macOS 13+、Xcode Command Line Tools、Swift 5.9+ 和 Python 3.9+：
 
 ~~~
 python3 -m pip install -r requirements-build.txt
@@ -45,8 +56,6 @@ open dist/ExitWatch.app
 ~~~
 
 首次启动时，应用会请求“通知”权限；点击菜单栏的盾牌图标可以展开面板。应用是菜单栏常驻程序，不会在 Dock 中显示。
-
-本次附带的本地压缩包针对 Apple Silicon（arm64）；Intel Mac 可以在本机按上面的命令重新构建。
 
 ## 工作方式
 
@@ -84,7 +93,13 @@ swift run ExitWatch --webrtc-once
 swift run ExitWatch --agents-once
 ~~~
 
-项目采用 Swift Package Manager，核心网络逻辑在 Sources/ExitWatchCore，菜单栏界面在 Sources/ExitWatch。GitHub Actions 会在 macOS runner 上自动运行测试并上传 .app 构建产物。
+项目采用 Swift Package Manager，核心网络逻辑在 Sources/ExitWatchCore，菜单栏界面在 Sources/ExitWatch。
+
+## CI 与自动发布
+
+- 每次推送或 Pull Request 会在 macOS runner 上运行测试并构建 `.app` artifact。
+- 推送 `v*` 标签会自动创建 GitHub Release，上传 Apple Silicon 安装包和 SHA256 校验文件。
+- 图标构建依赖固定在 `requirements-build.txt`，本地构建前先安装 Pillow。
 
 ## 后续计划
 
