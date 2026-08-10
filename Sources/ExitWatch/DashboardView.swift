@@ -14,15 +14,19 @@ struct DashboardView: View {
         VStack(spacing: 0) {
             header
             Divider()
+            if showingSettings {
+                settingsCard
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 4)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
             ScrollView {
                 VStack(spacing: 12) {
                     summaryCard
                     probeSection
                     leakSection
                     deviceInfoSection
-                    if showingSettings {
-                        settingsCard
-                    }
                     privacyNote
                 }
                 .padding(16)
@@ -435,8 +439,20 @@ struct DashboardView: View {
 
     private var settingsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("设置")
-                .font(.headline)
+            HStack {
+                Label("设置", systemImage: "gearshape.fill")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        showingSettings = false
+                    }
+                } label: {
+                    Label("完成", systemImage: "xmark")
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+            }
 
             Toggle("异常时发送系统通知", isOn: $model.alertsEnabled)
             Toggle("出口 IP 变化时自动检查 DNS/WebRTC", isOn: $leakModel.automaticChecksEnabled)
@@ -509,7 +525,7 @@ struct DashboardView: View {
                     showingSettings.toggle()
                 }
             } label: {
-                Label("设置", systemImage: "gearshape")
+                Label(showingSettings ? "关闭设置" : "设置", systemImage: showingSettings ? "xmark.circle" : "gearshape")
             }
             .buttonStyle(.borderless)
             .controlSize(.small)
